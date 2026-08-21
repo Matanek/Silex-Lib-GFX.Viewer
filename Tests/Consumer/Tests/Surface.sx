@@ -1,0 +1,31 @@
+use GFX.Assets.Image
+use GFX.Canvas
+use GFX.Viewer
+
+func display_image(image:Image) int {
+    return Viewer.show(image, Viewer.ImageSettings(
+        title:"Generated image",
+        width:640,
+        height:480,
+        smooth:false
+    ))
+}
+
+func display_canvas(drawing:Canvas) int {
+    return Viewer.show(drawing, Viewer.CanvasSettings(
+        width:960,
+        height:640,
+        title:"Generated chart"
+    ))
+}
+
+test "consume the direct Viewer show surface" {
+    let image = Viewer.ImageSettings(title:"Image", smooth:false)
+    assert(image.title == "Image")
+    assert(!image.smooth)
+
+    let canvas = Viewer.CanvasSettings(width:800, height:600, title:"Canvas")
+    assert(canvas.width == 800)
+    assert(canvas.height == 600)
+    assert(canvas.title == "Canvas")
+}
