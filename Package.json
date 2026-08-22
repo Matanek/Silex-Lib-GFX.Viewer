@@ -1,7 +1,9 @@
 {
   "name": "GFX.Viewer",
-  "version": "0.1.0",
-  "requires": { "silex": ">=0.38.36" },
+  "version": "0.2.0",
+  "description": "Display images, Canvas drawings, Plot figures, and other visual values in a native window.",
+  "authors": ["Matanek"],
+  "requires": { "silex": ">=0.39.0" },
   "dependencies": {
     "GFX": "^0.37.0",
     "GFX.Assets": "^0.1.0",
