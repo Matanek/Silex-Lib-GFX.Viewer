@@ -76,17 +76,47 @@ package class ImageView {
 }
 
 class DrawingPresentation {
-    let authored_width:int
-    let authored_height:int
     var display:ECS.Entity? = null
     var display_width:int
     var display_height:int
 
-    init(width:int, height:int) {
-        self.authored_width = width
-        self.authored_height = height
+    init() {
         self.display_width = 0
         self.display_height = 0
+    }
+}
+
+func empty_drawing(width:int, height:int) AuthoredCanvas {
+    return AuthoredCanvas()
+}
+
+class DrawingSource {
+    private var fixed:AuthoredCanvas?
+    private var builder:func(int, int) AuthoredCanvas
+    let responsive:bool
+
+    private init(
+        drawing:AuthoredCanvas?,
+        builder:func(int, int) AuthoredCanvas,
+        responsive:bool
+    ) {
+        self.fixed = drawing
+        self.builder = builder
+        self.responsive = responsive
+    }
+
+    static func fixed(drawing:AuthoredCanvas) DrawingSource {
+        return DrawingSource(drawing, empty_drawing, false)
+    }
+
+    static func responsive(builder:func(int, int) AuthoredCanvas) DrawingSource {
+        return DrawingSource(null, builder, true)
+    }
+
+    func drawing(width:int, height:int) AuthoredCanvas {
+        if self.responsive { return self.builder(width, height) }
+        if let content = self.fixed { return content }
+        panic("GFX.Viewer has no Canvas drawing source")
     }
 }
 
@@ -226,8 +256,30 @@ package func canvas_application(
         ..clear = settings.background
     ))
     application.add_plugin(Scene2DPlugin())
-    application.add_resource(drawing)
-    application.add_resource(DrawingPresentation(settings.width, settings.height))
+    application.add_resource(DrawingSource.fixed(drawing))
+    application.add_resource(DrawingPresentation())
+    application.add_system(Schedule.startup, start_drawing_viewer)
+    application.add_system(Schedule.update, resize_drawing_viewer)
+    application.add_system(Schedule.shutdown, stop_drawing_viewer)
+    return application
+}
+
+package func responsive_canvas_application(
+    builder:func(int, int) AuthoredCanvas,
+    settings:CanvasSettings = CanvasSettings()
+) Application {
+    var application = Application()
+    application.add_plugin(WindowPlugin(WindowPlugin.Settings()
+        ..title = settings.title
+        ..width = settings.width
+        ..height = settings.height
+    ))
+    application.add_plugin(RenderingPlugin(RenderingPlugin.Settings()
+        ..clear = settings.background
+    ))
+    application.add_plugin(Scene2DPlugin())
+    application.add_resource(DrawingSource.responsive(builder))
+    application.add_resource(DrawingPresentation())
     application.add_system(Schedule.startup, start_drawing_viewer)
     application.add_system(Schedule.update, resize_drawing_viewer)
     application.add_system(Schedule.shutdown, stop_drawing_viewer)
@@ -266,37 +318,31 @@ public func show(content:AuthoredCanvas, settings:CanvasSettings) int {
     return application.run()
 }
 
+public func show(
+    content:func(int, int) AuthoredCanvas,
+    settings:CanvasSettings = CanvasSettings()
+) int {
+    var application = responsive_canvas_application(content, settings)
+    return application.run()
+}
+
 func start_drawing_viewer(application:Application) {
     var resources = application.resources()
-    var stored_drawing = resources.remove<AuthoredCanvas>()
-    if var drawing = stored_drawing {
-        let size = resources.get<WindowApi>().size()
-        var authored_width = 0
-        var authored_height = 0
-        {
-            let presentation = resources.get<DrawingPresentation>()
-            authored_width = presentation.authored_width
-            authored_height = presentation.authored_height
-        }
-        var display:ECS.Entity? = null
-        {
-            var world = resources.get_mut<ECS.World>()
-            display = world.spawn(ECS.EntityRecipe()
-                ..with(Scene2D.Transform())
-                ..with(Scene2D.Canvas(drawing, authored_width, authored_height)
-                    ..size = size
-                    ..space = Scene2D.CanvasSpace.viewport
-                    ..pivot = Math.Vec2()
-                )
-            )
-        }
-        if let entity = display {
-            var presentation = resources.get_mut<DrawingPresentation>()
-            presentation.display = entity
-            presentation.display_width = size.x as int
-            presentation.display_height = size.y as int
-            return
-        }
+    let size = resources.get<WindowApi>().size()
+    let width = size.x as int
+    let height = size.y as int
+    var drawing = resources.get<DrawingSource>().drawing(width, height)
+    var display:ECS.Entity? = null
+    {
+        var world = resources.get_mut<ECS.World>()
+        display = spawn_drawing(world, drawing, width, height, size)
+    }
+    if let entity = display {
+        var presentation = resources.get_mut<DrawingPresentation>()
+        presentation.display = entity
+        presentation.display_width = width
+        presentation.display_height = height
+        return
     }
     panic("GFX.Viewer has no drawing")
 }
@@ -304,13 +350,24 @@ func start_drawing_viewer(application:Application) {
 func resize_drawing_viewer(
     window:@WindowApi,
     world:&ECS.World,
-    presentation:&DrawingPresentation
+    presentation:&DrawingPresentation,
+    source:@DrawingSource
 ) {
     let size = window.size()
     let width = size.x as int
     let height = size.y as int
     if width <= 0 || height <= 0 { return }
     if width == presentation.display_width && height == presentation.display_height { return }
+    if source.responsive {
+        if let display = presentation.display {
+            if world.is_alive(display) { world.destroy(display) }
+        }
+        var drawing = source.drawing(width, height)
+        presentation.display = spawn_drawing(world, drawing, width, height, size)
+        presentation.display_width = width
+        presentation.display_height = height
+        return
+    }
     if let display = presentation.display {
         world.update<Scene2D.Canvas>(display, func(canvas:&Scene2D.Canvas) {
             canvas.size = size
@@ -321,8 +378,28 @@ func resize_drawing_viewer(
 }
 
 func stop_drawing_viewer(application:Application) {
-    var presentation = application.resources().remove<DrawingPresentation>()
+    var resources = application.resources()
+    var presentation = resources.remove<DrawingPresentation>()
     assert(presentation != null)
+    var source = resources.remove<DrawingSource>()
+    assert(source != null)
+}
+
+func spawn_drawing(
+    world:&ECS.World,
+    drawing:AuthoredCanvas,
+    width:int,
+    height:int,
+    size:Math.Vec2
+) ECS.Entity {
+    return world.spawn(ECS.EntityRecipe()
+        ..with(Scene2D.Transform())
+        ..with(Scene2D.Canvas(drawing, width, height)
+            ..size = size
+            ..space = Scene2D.CanvasSpace.viewport
+            ..pivot = Math.Vec2()
+        )
+    )
 }
 
 func start_viewer(application:Application) {

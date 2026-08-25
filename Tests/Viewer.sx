@@ -40,6 +40,37 @@ func verify_vector_viewer_resize(
     panic("GFX.Viewer vector content did not follow its resized window")
 }
 
+func responsive_drawing(width:int, height:int) Canvas {
+    var drawing = Canvas()
+    drawing.paint(func(painter:&Canvas.Painter) {
+        painter.fill(
+            Canvas.Rect(Math.Vec2(), Math.Vec2(width as float, height as float)),
+            Canvas.Fill.solid(Color.violet_500())
+        )
+    })
+    return drawing
+}
+
+func verify_responsive_viewer_resize(
+    world:@ECS.World,
+    window:@Window,
+    controller:&Application.Controller
+) {
+    let expected = window.size()
+    for entity in world.entities() {
+        if world.has<Scene2D.Canvas>(entity) {
+            let canvas = world.get<Scene2D.Canvas>(entity)
+            if canvas.width() == expected.x as int &&
+                canvas.height() == expected.y as int && canvas.size == expected
+            {
+                controller.stop()
+                return
+            }
+        }
+    }
+    panic("GFX.Viewer responsive Canvas was not rebuilt for its window")
+}
+
 test "display and replace an image through the viewer runtime" {
     var application = Viewer.image_application(
         Image.solid(Color.sky_400())
@@ -80,4 +111,20 @@ test "display a canvas through the retained vector viewer" {
     application.run()
     assert(application.has_plugin("GFX.Scene2D.Plugin"))
     assert(application.has_plugin("GFX.Rendering.Plugin"))
+}
+
+test "rebuild responsive Canvas content for a resized window" {
+    var application = Viewer.responsive_canvas_application(
+        responsive_drawing,
+        Viewer.CanvasSettings(width:64, height:64)
+    )
+    application.add_plugin(WindowPlugin(WindowPlugin.Settings()
+        ..title = "GFX.Viewer responsive test"
+        ..width = 64
+        ..height = 64
+        ..hidden = true
+    ))
+    application.add_system(Application.Schedule.startup, resize_vector_viewer)
+    application.add_system(Application.Schedule.update, verify_responsive_viewer_resize)
+    application.run()
 }

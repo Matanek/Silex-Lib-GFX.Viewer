@@ -13,6 +13,7 @@ use GFX.Viewer
 
 Viewer.show(image)
 Viewer.show(canvas, 960, 640, "Generated chart")
+Viewer.show(responsive_canvas, Viewer.CanvasSettings(width:1180, height:760))
 ```
 
 The package creates and runs the required GFX application internally. Its

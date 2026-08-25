@@ -46,10 +46,26 @@ Viewer.show(drawing, Viewer.CanvasSettings(
 ))
 ```
 
+When layout depends on the available window size, pass a drawing function.
+Viewer calls it initially and after each resize, producing retained vector
+commands while allowing the producer to recompute its layout:
+
+```sx
+func responsive(width:int, height:int) Canvas {
+    return build_interface(width, height)
+}
+
+Viewer.show(responsive, Viewer.CanvasSettings(
+    width:1180,
+    height:760,
+    title:"Responsive interface"
+))
+```
+
 The positional `Viewer.show(drawing, width, height, title)` form remains the
 shortest path for examples and generated plots.
 
-Both forms block until their window closes. Application plugins and resources
+All forms block until their window closes. Application plugins and resources
 used to implement the viewer are package-private; callers only choose what to
 show and how it should be presented.
 

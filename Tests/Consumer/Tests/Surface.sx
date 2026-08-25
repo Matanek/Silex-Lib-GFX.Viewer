@@ -19,6 +19,18 @@ func display_canvas(drawing:Canvas) int {
     ))
 }
 
+func responsive_canvas(width:int, height:int) Canvas {
+    return Canvas()
+}
+
+func display_responsive_canvas() int {
+    return Viewer.show(responsive_canvas, Viewer.CanvasSettings(
+        width:960,
+        height:640,
+        title:"Responsive UI"
+    ))
+}
+
 test "consume the direct Viewer show surface" {
     let image = Viewer.ImageSettings(title:"Image", smooth:false)
     assert(image.title == "Image")
