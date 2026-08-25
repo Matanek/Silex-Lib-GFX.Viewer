@@ -6,6 +6,8 @@ use GFX.Color
 use GFX.ECS
 use GFX.GPU
 use GFX.GPU.Plugin as GPUPlugin
+use GFX.Input as InputApi
+use GFX.Input.Events
 use GFX.Rendering.Plugin as RenderingPlugin
 use GFX.Scene2D
 use GFX.Scene2D.Plugin as Scene2DPlugin
@@ -57,6 +59,22 @@ public struct CanvasSettings {
     }
 }
 
+// A stateful, event-driven Canvas source. The Viewer only hosts the session;
+// its state remains owned by the caller and never enters the caller's ECS World.
+public protocol CanvasSession {
+    func drawing(width:int, height:int) AuthoredCanvas
+    func handle(event:@Events.Event) bool
+    func accepts_text_input() bool
+}
+
+// Keeps the protocol's dynamic table complete even in consumers that only use
+// the static Viewer overloads and therefore define no session of their own.
+struct EmptyCanvasSession:CanvasSession {
+    func drawing(width:int, height:int) AuthoredCanvas { return AuthoredCanvas() }
+    func handle(event:@Events.Event) bool { return false }
+    func accepts_text_input() bool { return false }
+}
+
 package class ImageView {
     private var current_image:Image
     private var current_revision:int
@@ -93,16 +111,22 @@ func empty_drawing(width:int, height:int) AuthoredCanvas {
 class DrawingSource {
     private var fixed:AuthoredCanvas?
     private var builder:func(int, int) AuthoredCanvas
+    private var session:CanvasSession? = null
     let responsive:bool
+    let interactive:bool
 
     private init(
         drawing:AuthoredCanvas?,
         builder:func(int, int) AuthoredCanvas,
-        responsive:bool
+        responsive:bool,
+        session:CanvasSession? = null,
+        interactive:bool = false
     ) {
         self.fixed = drawing
         self.builder = builder
+        self.session = session
         self.responsive = responsive
+        self.interactive = interactive
     }
 
     static func fixed(drawing:AuthoredCanvas) DrawingSource {
@@ -113,10 +137,31 @@ class DrawingSource {
         return DrawingSource(null, builder, true)
     }
 
+    static func interactive(session:CanvasSession) DrawingSource {
+        return DrawingSource(
+            null,
+            empty_drawing,
+            true,
+            session:session,
+            interactive:true
+        )
+    }
+
     func drawing(width:int, height:int) AuthoredCanvas {
+        if var content = self.session { return content.drawing(width, height) }
         if self.responsive { return self.builder(width, height) }
         if let content = self.fixed { return content }
         panic("GFX.Viewer has no Canvas drawing source")
+    }
+
+    func handle(event:@Events.Event) bool {
+        if var content = self.session { return content.handle(event) }
+        return false
+    }
+
+    func accepts_text_input() bool {
+        if var content = self.session { return content.accepts_text_input() }
+        return false
     }
 }
 
@@ -286,6 +331,29 @@ package func responsive_canvas_application(
     return application
 }
 
+package func interactive_canvas_application(
+    session:CanvasSession,
+    settings:CanvasSettings = CanvasSettings()
+) Application {
+    var application = Application()
+    application.add_plugin(WindowPlugin(WindowPlugin.Settings()
+        ..title = settings.title
+        ..width = settings.width
+        ..height = settings.height
+    ))
+    application.add_plugin(RenderingPlugin(RenderingPlugin.Settings()
+        ..clear = settings.background
+    ))
+    application.add_plugin(Scene2DPlugin())
+    application.add_resource(DrawingSource.interactive(session))
+    application.add_resource(DrawingPresentation())
+    application.add_system(Schedule.startup, start_drawing_viewer)
+    application.add_system(Schedule.update, interact_drawing_viewer)
+    application.add_system(Schedule.update, resize_drawing_viewer)
+    application.add_system(Schedule.shutdown, stop_drawing_viewer)
+    return application
+}
+
 public func show(content:Image) int {
     var application = image_application(content)
     return application.run()
@@ -326,6 +394,14 @@ public func show(
     return application.run()
 }
 
+public func show(
+    content:CanvasSession,
+    settings:CanvasSettings = CanvasSettings()
+) int {
+    var application = interactive_canvas_application(content, settings)
+    return application.run()
+}
+
 func start_drawing_viewer(application:Application) {
     var resources = application.resources()
     let size = resources.get<WindowApi>().size()
@@ -359,13 +435,8 @@ func resize_drawing_viewer(
     if width <= 0 || height <= 0 { return }
     if width == presentation.display_width && height == presentation.display_height { return }
     if source.responsive {
-        if let display = presentation.display {
-            if world.is_alive(display) { world.destroy(display) }
-        }
         var drawing = source.drawing(width, height)
-        presentation.display = spawn_drawing(world, drawing, width, height, size)
-        presentation.display_width = width
-        presentation.display_height = height
+        replace_drawing(world, presentation, drawing, width, height, size)
         return
     }
     if let display = presentation.display {
@@ -373,6 +444,59 @@ func resize_drawing_viewer(
             canvas.size = size
         })
     }
+    presentation.display_width = width
+    presentation.display_height = height
+}
+
+func interact_drawing_viewer(
+    input:@InputApi,
+    window:@WindowApi,
+    world:&ECS.World,
+    presentation:&DrawingPresentation,
+    source:&DrawingSource
+) {
+    if !source.interactive { return }
+    var changed = false
+    for event in input.events() {
+        changed = source.handle(event) || changed
+    }
+
+    let accepts_text = source.accepts_text_input()
+    if accepts_text && !window.is_text_input_active() { window.start_text_input() }
+    elif !accepts_text && window.is_text_input_active() { window.stop_text_input() }
+
+    if !changed { return }
+    let size = window.size()
+    let width = size.x as int
+    let height = size.y as int
+    if width <= 0 || height <= 0 { return }
+    var drawing = source.drawing(width, height)
+    replace_drawing(world, presentation, drawing, width, height, size)
+}
+
+func replace_drawing(
+    world:&ECS.World,
+    presentation:&DrawingPresentation,
+    drawing:AuthoredCanvas,
+    width:int,
+    height:int,
+    size:Math.Vec2
+) {
+    if width == presentation.display_width && height == presentation.display_height {
+        if let display = presentation.display {
+            if world.is_alive(display) {
+                world.update<Scene2D.Canvas>(display, func(canvas:&Scene2D.Canvas) {
+                    canvas.replace(drawing)
+                    canvas.size = size
+                })
+                return
+            }
+        }
+    }
+    if let display = presentation.display {
+        if world.is_alive(display) { world.destroy(display) }
+    }
+    presentation.display = spawn_drawing(world, drawing, width, height, size)
     presentation.display_width = width
     presentation.display_height = height
 }

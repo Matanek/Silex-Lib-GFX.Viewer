@@ -14,12 +14,15 @@ use GFX.Viewer
 Viewer.show(image)
 Viewer.show(canvas, 960, 640, "Generated chart")
 Viewer.show(responsive_canvas, Viewer.CanvasSettings(width:1180, height:760))
+Viewer.show(interactive_session, Viewer.CanvasSettings(width:1180, height:760))
 ```
 
 The package creates and runs the required GFX application internally. Its
 Window, GPU, Rendering, Scene2D, ECS, and plugin composition are not part of
 the public Viewer API.
 
+`Viewer.CanvasSession` is the stateful form: Viewer forwards GFX input events,
+rebuilds its retained Canvas after changes and synchronizes OS text input.
 `Viewer.ImageSettings` and `Viewer.CanvasSettings` expose presentation choices
 only when the short forms are insufficient. Future model, animated-sprite,
 gallery, and slideshow viewers can add their own typed settings while keeping

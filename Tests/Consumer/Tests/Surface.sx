@@ -1,6 +1,13 @@
 use GFX.Assets.Image
 use GFX.Canvas
+use GFX.Input
 use GFX.Viewer
+
+struct ConsumerSession:Viewer.CanvasSession {
+    func drawing(width:int, height:int) Canvas { return Canvas() }
+    func handle(event:@Input.Event) bool { return false }
+    func accepts_text_input() bool { return false }
+}
 
 func display_image(image:Image) int {
     return Viewer.show(image, Viewer.ImageSettings(
@@ -28,6 +35,14 @@ func display_responsive_canvas() int {
         width:960,
         height:640,
         title:"Responsive UI"
+    ))
+}
+
+func display_interactive_canvas() int {
+    return Viewer.show(ConsumerSession(), Viewer.CanvasSettings(
+        width:960,
+        height:640,
+        title:"Interactive UI"
     ))
 }
 
