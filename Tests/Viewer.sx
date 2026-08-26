@@ -73,11 +73,68 @@ class InteractiveDrawing:Viewer.CanvasSession {
     func accepts_text_input() bool { return false }
 }
 
+class TimedDrawing:Viewer.CanvasSession {
+    var elapsed:float = 0.0
+    var updates:int = 0
+    var drawings:int = 0
+    var invalidated:bool = false
+
+    func drawing(width:int, height:int) Canvas {
+        self.drawings++
+        var drawing = responsive_drawing(width, height)
+        if self.invalidated {
+            drawing.paint(func(painter:&Canvas.Painter) {
+                painter.stroke(
+                    Canvas.Line(Math.Vec2(8.0, 8.0), Math.Vec2(56.0, 56.0)),
+                    Canvas.Stroke(Color.cyan_400())
+                )
+            })
+        }
+        return drawing
+    }
+
+    func update(delta:float) bool {
+        self.updates++
+        self.elapsed += delta
+        if !self.invalidated && self.elapsed >= 0.05 {
+            self.invalidated = true
+            return true
+        }
+        return false
+    }
+
+    func handle(event:@Input.Event) bool { return false }
+    func accepts_text_input() bool { return false }
+}
+
 func verify_interactive_viewer(
     session:@InteractiveDrawing,
     controller:&Application.Controller
 ) {
     if session.handled_events > 0 { controller.stop() }
+}
+
+func verify_timed_viewer(
+    session:@TimedDrawing,
+    world:@ECS.World,
+    controller:&Application.Controller
+) {
+    if session.drawings >= 2 {
+        for entity in world.entities() {
+            if world.has<Scene2D.Canvas>(entity) {
+                let canvas = world.get<Scene2D.Canvas>(entity)
+                if canvas.revision() > 1 &&
+                    canvas.snapshot().geometry().vertex_count() > 6
+                {
+                    controller.stop()
+                    return
+                }
+            }
+        }
+    }
+    if session.updates > 1_000_000 {
+        panic("GFX.Viewer did not advance its timed Canvas session")
+    }
 }
 
 func verify_responsive_viewer_resize(
@@ -176,4 +233,24 @@ test "forward window events to an interactive Canvas session" {
     application.run()
     assert(session.handled_events > 0)
     assert(session.updated_frames > 0)
+}
+
+test "redraw an interactive Canvas after a timed invalidation" {
+    var session = TimedDrawing()
+    var application = Viewer.interactive_canvas_application(
+        session,
+        Viewer.CanvasSettings(width:64, height:64)
+    )
+    application.add_resource(session)
+    application.add_plugin(WindowPlugin(WindowPlugin.Settings()
+        ..title = "GFX.Viewer timed interactive test"
+        ..width = 64
+        ..height = 64
+        ..hidden = true
+    ))
+    application.add_system(Application.Schedule.update, verify_timed_viewer)
+    application.run()
+    assert(session.invalidated)
+    assert(session.elapsed >= 0.05)
+    assert(session.drawings >= 2)
 }
