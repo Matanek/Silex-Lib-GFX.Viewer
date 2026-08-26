@@ -54,6 +54,7 @@ func responsive_drawing(width:int, height:int) Canvas {
 
 class InteractiveDrawing:Viewer.CanvasSession {
     var handled_events:int = 0
+    var updated_frames:int = 0
 
     func drawing(width:int, height:int) Canvas {
         return responsive_drawing(width, height)
@@ -62,6 +63,11 @@ class InteractiveDrawing:Viewer.CanvasSession {
     func handle(event:@Input.Event) bool {
         self.handled_events++
         return true
+    }
+
+    func update(delta:float) bool {
+        self.updated_frames++
+        return false
     }
 
     func accepts_text_input() bool { return false }
@@ -169,4 +175,5 @@ test "forward window events to an interactive Canvas session" {
     application.add_system(Application.Schedule.update, verify_interactive_viewer)
     application.run()
     assert(session.handled_events > 0)
+    assert(session.updated_frames > 0)
 }

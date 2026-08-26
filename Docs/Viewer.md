@@ -67,6 +67,7 @@ Interactive Canvas content implements `Viewer.CanvasSession`:
 ```sx
 class Preview:Viewer.CanvasSession {
     func drawing(width:int, height:int) Canvas { return build(width, height) }
+    func update(delta:float) bool { return advance_animations(delta) }
     func handle(event:@GFX.Input.Event) bool { return update_state(event) }
     func accepts_text_input() bool { return editing_text() }
 }
@@ -74,10 +75,12 @@ class Preview:Viewer.CanvasSession {
 Viewer.show(Preview(), Viewer.CanvasSettings(width:1180, height:760))
 ```
 
-Viewer forwards the window's input events to the session. A `true` result from
-`handle` requests a new retained Canvas drawing. It also starts and stops OS
-text input from `accepts_text_input`. The session owns its state; Viewer does
-not insert that state into an application's game ECS world.
+Viewer forwards frame deltas and the window's input events to the session. A
+`true` result from `update` or `handle` requests a new retained Canvas drawing.
+Returning `false` keeps an idle session from rebuilding its vector content. It
+also starts and stops OS text input from `accepts_text_input`. The session owns
+its state; Viewer does not insert that state into an application's game ECS
+world.
 
 The positional `Viewer.show(drawing, width, height, title)` form remains the
 shortest path for examples and generated plots.

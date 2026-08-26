@@ -21,8 +21,9 @@ The package creates and runs the required GFX application internally. Its
 Window, GPU, Rendering, Scene2D, ECS, and plugin composition are not part of
 the public Viewer API.
 
-`Viewer.CanvasSession` is the stateful form: Viewer forwards GFX input events,
-rebuilds its retained Canvas after changes and synchronizes OS text input.
+`Viewer.CanvasSession` is the stateful form: Viewer forwards frame deltas and
+GFX input events, rebuilds its retained Canvas only after a reported visual
+change and synchronizes OS text input.
 `Viewer.ImageSettings` and `Viewer.CanvasSettings` expose presentation choices
 only when the short forms are insufficient. Future model, animated-sprite,
 gallery, and slideshow viewers can add their own typed settings while keeping

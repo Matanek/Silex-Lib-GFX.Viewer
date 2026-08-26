@@ -5,6 +5,7 @@ use GFX.Viewer
 
 struct ConsumerSession:Viewer.CanvasSession {
     func drawing(width:int, height:int) Canvas { return Canvas() }
+    func update(delta:float) bool { return false }
     func handle(event:@Input.Event) bool { return false }
     func accepts_text_input() bool { return false }
 }
