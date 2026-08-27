@@ -62,10 +62,10 @@ Viewer.show(responsive, Viewer.CanvasSettings(
 ))
 ```
 
-Interactive Canvas content implements `Viewer.CanvasSession`:
+Interactive Canvas content implements `Canvas.Session`:
 
 ```sx
-class Preview:Viewer.CanvasSession {
+class Preview:Canvas.Session {
     func drawing(width:int, height:int) Canvas { return build(width, height) }
     func update(delta:float) bool { return advance_animations(delta) }
     func handle(event:@GFX.Input.Event) bool { return update_state(event) }
@@ -81,6 +81,10 @@ Returning `false` keeps an idle session from rebuilding its vector content. It
 also starts and stops OS text input from `accepts_text_input`. The session owns
 its state; Viewer does not insert that state into an application's game ECS
 world.
+
+`Viewer.CanvasSession` remains available as a compatibility alias for
+`Canvas.Session`. New reusable producers should name the Canvas-owned contract
+so they do not describe themselves in terms of one presenter.
 
 The positional `Viewer.show(drawing, width, height, title)` form remains the
 shortest path for examples and generated plots.

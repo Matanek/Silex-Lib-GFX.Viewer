@@ -3,6 +3,7 @@ use GFX.Application.Schedule
 use GFX.Application.Time as TimePlugin
 use GFX.Assets.Image
 use GFX.Canvas.Canvas as AuthoredCanvas
+public use GFX.Canvas.Session.Session as CanvasSession
 use GFX.Color
 use GFX.ECS
 use GFX.GPU
@@ -59,24 +60,6 @@ public struct CanvasSettings {
         self.height = height
         self.background = background
     }
-}
-
-// A stateful Canvas source. Update and input handlers explicitly invalidate
-// its drawing; state remains owned by the caller and never enters its ECS World.
-public protocol CanvasSession {
-    func drawing(width:int, height:int) AuthoredCanvas
-    func update(delta:float) bool
-    func handle(event:@Events.Event) bool
-    func accepts_text_input() bool
-}
-
-// Keeps the protocol's dynamic table complete even in consumers that only use
-// the static Viewer overloads and therefore define no session of their own.
-struct EmptyCanvasSession:CanvasSession {
-    func drawing(width:int, height:int) AuthoredCanvas { return AuthoredCanvas() }
-    func update(delta:float) bool { return false }
-    func handle(event:@Events.Event) bool { return false }
-    func accepts_text_input() bool { return false }
 }
 
 package class ImageView {

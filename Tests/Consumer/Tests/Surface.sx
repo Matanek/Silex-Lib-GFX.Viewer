@@ -3,7 +3,7 @@ use GFX.Canvas
 use GFX.Input
 use GFX.Viewer
 
-struct ConsumerSession:Viewer.CanvasSession {
+struct ConsumerSession:Canvas.Session {
     func drawing(width:int, height:int) Canvas { return Canvas() }
     func update(delta:float) bool { return false }
     func handle(event:@Input.Event) bool { return false }
