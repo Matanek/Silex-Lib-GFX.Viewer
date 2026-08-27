@@ -1,4 +1,5 @@
 {
+  "sources": "Tests",
   "requires": { "silex": ">=0.38.36" },
   "dependencies": {
     "GFX": "^0.37.0",
