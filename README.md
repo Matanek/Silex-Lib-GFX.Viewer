@@ -15,6 +15,11 @@ Viewer.show(image)
 Viewer.show(canvas, 960, 640, "Generated chart")
 Viewer.show(responsive_canvas, Viewer.CanvasSettings(width:1180, height:760))
 Viewer.show(interactive_session, Viewer.CanvasSettings(width:1180, height:760))
+Viewer.show_until(
+    transient_session,
+    func() bool { return transient_session.finished() },
+    Viewer.CanvasSettings(width:1180, height:760)
+)
 ```
 
 The package creates and runs the required GFX application internally. Its
@@ -23,7 +28,10 @@ the public Viewer API.
 
 `Canvas.Session` is the stateful form: Viewer forwards frame deltas and GFX
 input events, rebuilds its retained Canvas only after a reported visual change
-and synchronizes OS text input. `Viewer.CanvasSession` remains a compatibility
+and synchronizes OS text input. `Viewer.show_until` accepts a lifecycle
+predicate that lets content end the convenience window without owning
+Application or Window.
+`Viewer.CanvasSession` remains a compatibility
 alias; the contract itself belongs to GFX.Canvas rather than its presenter.
 `Viewer.ImageSettings` and `Viewer.CanvasSettings` expose presentation choices
 only when the short forms are insufficient. Future model, animated-sprite,

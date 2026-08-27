@@ -254,3 +254,20 @@ test "redraw an interactive Canvas after a timed invalidation" {
     assert(session.elapsed >= 0.05)
     assert(session.drawings >= 2)
 }
+
+test "close an interactive viewer from its content predicate" {
+    var session = TimedDrawing()
+    var application = Viewer.interactive_canvas_application(
+        session,
+        Viewer.CanvasSettings(width:64, height:64),
+        func() bool { return session.updates >= 2 }
+    )
+    application.add_plugin(WindowPlugin(WindowPlugin.Settings()
+        ..title = "GFX.Viewer closing session test"
+        ..width = 64
+        ..height = 64
+        ..hidden = true
+    ))
+    application.run()
+    assert(session.updates >= 2)
+}

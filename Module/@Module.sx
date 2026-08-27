@@ -95,10 +95,13 @@ func empty_drawing(width:int, height:int) AuthoredCanvas {
     return AuthoredCanvas()
 }
 
+func keep_viewer_open() bool { return false }
+
 class DrawingSource {
     private var fixed:AuthoredCanvas?
     private var builder:func(int, int) AuthoredCanvas
     private var session:CanvasSession? = null
+    private let close_condition:func() bool
     let responsive:bool
     let interactive:bool
 
@@ -107,11 +110,13 @@ class DrawingSource {
         builder:func(int, int) AuthoredCanvas,
         responsive:bool,
         session:CanvasSession? = null,
-        interactive:bool = false
+        interactive:bool = false,
+        close_when:func() bool = keep_viewer_open
     ) {
         self.fixed = drawing
         self.builder = builder
         self.session = session
+        self.close_condition = close_when
         self.responsive = responsive
         self.interactive = interactive
     }
@@ -124,13 +129,17 @@ class DrawingSource {
         return DrawingSource(null, builder, true)
     }
 
-    static func interactive(session:CanvasSession) DrawingSource {
+    static func interactive(
+        session:CanvasSession,
+        close_when:func() bool = keep_viewer_open
+    ) DrawingSource {
         return DrawingSource(
             null,
             empty_drawing,
             true,
             session:session,
-            interactive:true
+            interactive:true,
+            close_when:close_when
         )
     }
 
@@ -155,6 +164,8 @@ class DrawingSource {
         if var content = self.session { return content.accepts_text_input() }
         return false
     }
+
+    func should_close() bool { return self.close_condition() }
 }
 
 class RenderState {
@@ -325,7 +336,8 @@ package func responsive_canvas_application(
 
 package func interactive_canvas_application(
     session:CanvasSession,
-    settings:CanvasSettings = CanvasSettings()
+    settings:CanvasSettings = CanvasSettings(),
+    close_when:func() bool = keep_viewer_open
 ) Application {
     var application = Application()
     application.add_plugin(WindowPlugin(WindowPlugin.Settings()
@@ -338,7 +350,10 @@ package func interactive_canvas_application(
     ))
     application.add_plugin(TimePlugin())
     application.add_plugin(Scene2DPlugin())
-    application.add_resource(DrawingSource.interactive(session))
+    application.add_resource(DrawingSource.interactive(
+        session,
+        close_when:close_when
+    ))
     application.add_resource(DrawingPresentation())
     application.add_system(Schedule.startup, start_drawing_viewer)
     application.add_system(Schedule.update, interact_drawing_viewer)
@@ -395,6 +410,19 @@ public func show(
     return application.run()
 }
 
+public func show_until(
+    content:CanvasSession,
+    close_when:func() bool,
+    settings:CanvasSettings = CanvasSettings()
+) int {
+    var application = interactive_canvas_application(
+        content,
+        settings,
+        close_when:close_when
+    )
+    return application.run()
+}
+
 func start_drawing_viewer(application:Application) {
     var resources = application.resources()
     let size = resources.get<WindowApi>().size()
@@ -447,12 +475,17 @@ func interact_drawing_viewer(
     window:@WindowApi,
     world:&ECS.World,
     presentation:&DrawingPresentation,
-    source:&DrawingSource
+    source:&DrawingSource,
+    controller:&Application.Controller
 ) {
     if !source.interactive { return }
     var changed = source.update(time.delta)
     for event in input.events() {
         changed = source.handle(event) || changed
+    }
+    if source.should_close() {
+        controller.stop()
+        return
     }
 
     let accepts_text = source.accepts_text_input()

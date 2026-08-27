@@ -47,6 +47,18 @@ func display_interactive_canvas() int {
     ))
 }
 
+func display_closing_interactive_canvas() int {
+    return Viewer.show_until(
+        ConsumerSession(),
+        func() bool { return true },
+        Viewer.CanvasSettings(
+            width:960,
+            height:640,
+            title:"Transient UI"
+        )
+    )
+}
+
 test "consume the direct Viewer show surface" {
     let image = Viewer.ImageSettings(title:"Image", smooth:false)
     assert(image.title == "Image")

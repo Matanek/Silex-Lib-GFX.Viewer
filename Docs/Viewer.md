@@ -82,6 +82,11 @@ also starts and stops OS text input from `accepts_text_input`. The session owns
 its state; Viewer does not insert that state into an application's game ECS
 world.
 
+`Viewer.show_until(session, close_when, settings)` evaluates its lifecycle
+predicate after each interactive update and closes its own convenience window
+when it returns `true`. Ordinary `Viewer.show` sessions stay open until the
+user closes the window.
+
 `Viewer.CanvasSession` remains available as a compatibility alias for
 `Canvas.Session`. New reusable producers should name the Canvas-owned contract
 so they do not describe themselves in terms of one presenter.
