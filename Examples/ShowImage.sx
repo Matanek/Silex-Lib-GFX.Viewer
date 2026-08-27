@@ -1,9 +1,0 @@
-use GFX.Canvas
-use GFX.Color
-use GFX.Viewer
-
-func main() {
-    var surface = Canvas.Surface(320, 240, Color.sky_400())
-    let image = surface.image()
-    Viewer.show(image, Viewer.ImageSettings(title:"GFX.Viewer — Image"))
-}
