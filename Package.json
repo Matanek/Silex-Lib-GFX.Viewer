@@ -1,12 +1,12 @@
 {
   "name": "GFX.Viewer",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": {
     "en": "Display images, Canvas drawings, Plot figures, and other visual values in a native window.",
     "fr": "Affiche des images, dessins Canvas, figures Plot et autres valeurs visuelles dans une fenêtre native."
   },
   "authors": ["Matanek"],
-  "requires": { "silex": ">=0.42.0" },
+  "requires": { "silex": ">=0.43.0" },
   "dependencies": {
     "GFX": "^0.37.0",
     "GFX.Assets": "^0.1.0",
