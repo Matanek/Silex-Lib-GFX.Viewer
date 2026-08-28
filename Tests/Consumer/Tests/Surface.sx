@@ -2,6 +2,7 @@ use GFX.Assets.Image
 use GFX.Canvas
 use GFX.Input
 use GFX.Viewer
+use STD.Math
 
 struct ConsumerSession:Canvas.Session {
     func drawing(width:int, height:int) Canvas { return Canvas() }
@@ -64,8 +65,16 @@ test "consume the direct Viewer show surface" {
     assert(image.title == "Image")
     assert(!image.smooth)
 
-    let canvas = Viewer.CanvasSettings(width:800, height:600, title:"Canvas")
+    let canvas = Viewer.CanvasSettings(
+        width:800,
+        height:600,
+        title:"Canvas",
+        position:Math.Vec2(12.0, 8.0),
+        anchor:Math.Vec2(0.5)
+    )
     assert(canvas.width == 800)
     assert(canvas.height == 600)
     assert(canvas.title == "Canvas")
+    assert(canvas.position == Math.Vec2(12.0, 8.0))
+    assert(canvas.anchor == Math.Vec2(0.5))
 }

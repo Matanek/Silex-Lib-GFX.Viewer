@@ -32,7 +32,11 @@ func verify_vector_viewer_resize(
     for entity in world.entities() {
         if world.has<Scene2D.Canvas>(entity) {
             let canvas = world.get<Scene2D.Canvas>(entity)
-            if canvas.size == expected {
+            let transform = world.get<Scene2D.Transform>(entity)
+            if canvas.size == expected &&
+                canvas.anchor == Math.Vec2(0.5) &&
+                transform.position == Math.Vec2(4.0, 6.0)
+            {
                 controller.stop()
                 return
             }
@@ -184,7 +188,12 @@ test "display a canvas through the retained vector viewer" {
     })
     var application = Viewer.canvas_application(
         drawing,
-        Viewer.CanvasSettings(width:64, height:64)
+        Viewer.CanvasSettings(
+            width:64,
+            height:64,
+            position:Math.Vec2(4.0, 6.0),
+            anchor:Math.Vec2(0.5)
+        )
     )
     application.add_plugin(WindowPlugin(WindowPlugin.Settings()
         ..title = "GFX.Viewer vector test"

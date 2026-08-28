@@ -49,6 +49,7 @@ Un Canvas reste vectoriel et suit le viewport de la fenêtre :
 ```sx
 use GFX.Canvas
 use GFX.Viewer
+use STD.Math
 
 var drawing = Canvas()
 drawing.paint(func(painter:&Canvas.Painter) {
@@ -59,6 +60,18 @@ Viewer.show(drawing, Viewer.CanvasSettings(
     width:960,
     height:640,
     title:"Generated chart",
+))
+```
+
+`anchor` place l’origine du dessin relativement au viewport et `position`
+ajoute un décalage logique. Un cercle dessiné autour de `(0, 0)` peut ainsi
+rester inchangé et être centré dans la fenêtre :
+
+```sx
+Viewer.show(drawing, Viewer.CanvasSettings(
+    width:800,
+    height:800,
+    anchor:Math.Vec2(0.5),
 ))
 ```
 

@@ -45,12 +45,16 @@ public struct CanvasSettings {
     var width:int
     var height:int
     var background:Color
+    var position:Math.Vec2
+    var anchor:Math.Vec2
 
     init(
         width:int = 960,
         height:int = 640,
         title:str = "GFX canvas viewer",
-        background:Color = Color.slate_950()
+        background:Color = Color.slate_950(),
+        position:Math.Vec2 = Math.Vec2(),
+        anchor:Math.Vec2 = Math.Vec2()
     ) {
         if width <= 0 || height <= 0 {
             panic("GFX.Viewer canvas dimensions must be positive")
@@ -59,6 +63,8 @@ public struct CanvasSettings {
         self.width = width
         self.height = height
         self.background = background
+        self.position = position
+        self.anchor = anchor
     }
 }
 
@@ -84,10 +90,14 @@ class DrawingPresentation {
     var display:ECS.Entity? = null
     var display_width:int
     var display_height:int
+    let position:Math.Vec2
+    let anchor:Math.Vec2
 
-    init() {
+    init(settings:CanvasSettings) {
         self.display_width = 0
         self.display_height = 0
+        self.position = settings.position
+        self.anchor = settings.anchor
     }
 }
 
@@ -305,7 +315,7 @@ package func canvas_application(
     ))
     application.add_plugin(Scene2DPlugin())
     application.add_resource(DrawingSource.fixed(drawing))
-    application.add_resource(DrawingPresentation())
+    application.add_resource(DrawingPresentation(settings))
     application.add_system(Schedule.startup, start_drawing_viewer)
     application.add_system(Schedule.update, resize_drawing_viewer)
     application.add_system(Schedule.shutdown, stop_drawing_viewer)
@@ -327,7 +337,7 @@ package func responsive_canvas_application(
     ))
     application.add_plugin(Scene2DPlugin())
     application.add_resource(DrawingSource.responsive(builder))
-    application.add_resource(DrawingPresentation())
+    application.add_resource(DrawingPresentation(settings))
     application.add_system(Schedule.startup, start_drawing_viewer)
     application.add_system(Schedule.update, resize_drawing_viewer)
     application.add_system(Schedule.shutdown, stop_drawing_viewer)
@@ -354,7 +364,7 @@ package func interactive_canvas_application(
         session,
         close_when:close_when
     ))
-    application.add_resource(DrawingPresentation())
+    application.add_resource(DrawingPresentation(settings))
     application.add_system(Schedule.startup, start_drawing_viewer)
     application.add_system(Schedule.update, interact_drawing_viewer)
     application.add_system(Schedule.update, resize_drawing_viewer)
@@ -429,10 +439,25 @@ func start_drawing_viewer(application:Application) {
     let width = size.x as int
     let height = size.y as int
     var drawing = resources.get<DrawingSource>().drawing(width, height)
+    var position = Math.Vec2()
+    var anchor = Math.Vec2()
+    {
+        let placement = resources.get<DrawingPresentation>()
+        position = placement.position
+        anchor = placement.anchor
+    }
     var display:ECS.Entity? = null
     {
         var world = resources.get_mut<ECS.World>()
-        display = spawn_drawing(world, drawing, width, height, size)
+        display = spawn_drawing(
+            world,
+            drawing,
+            width,
+            height,
+            size,
+            position,
+            anchor
+        )
     }
     if let entity = display {
         var presentation = resources.get_mut<DrawingPresentation>()
@@ -523,7 +548,15 @@ func replace_drawing(
     if let display = presentation.display {
         if world.is_alive(display) { world.destroy(display) }
     }
-    presentation.display = spawn_drawing(world, drawing, width, height, size)
+    presentation.display = spawn_drawing(
+        world,
+        drawing,
+        width,
+        height,
+        size,
+        presentation.position,
+        presentation.anchor
+    )
     presentation.display_width = width
     presentation.display_height = height
 }
@@ -541,13 +574,16 @@ func spawn_drawing(
     drawing:AuthoredCanvas,
     width:int,
     height:int,
-    size:Math.Vec2
+    size:Math.Vec2,
+    position:Math.Vec2,
+    anchor:Math.Vec2
 ) ECS.Entity {
     return world.spawn(ECS.EntityRecipe()
-        ..with(Scene2D.Transform())
+        ..with(Scene2D.Transform(position:position))
         ..with(Scene2D.Canvas(drawing, width, height)
             ..size = size
             ..space = Scene2D.CanvasSpace.viewport
+            ..anchor = anchor
             ..pivot = Math.Vec2()
         )
     )
