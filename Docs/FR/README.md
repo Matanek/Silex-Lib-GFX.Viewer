@@ -96,6 +96,48 @@ Viewer.show(responsive, Viewer.CanvasSettings(
 
 Ce fragment suppose une fonction `build_interface` propre à l’application.
 
+## Animer un Canvas retenu
+
+Passez un callback de frame lorsque le dessin évolue avec le temps sans avoir
+besoin d’une session interactive complète. Viewer crée un seul Canvas, appelle
+le callback une première fois avec un delta nul, puis transmet le temps et les
+dimensions logiques de chaque frame :
+
+```sx
+use GFX.Canvas
+use GFX.Color
+use GFX.Viewer
+use STD.Math
+
+var elapsed = 0.0
+
+Viewer.show(
+    func(frame:@Viewer.CanvasFrame, drawing:&Canvas) {
+        elapsed += frame.delta
+        let radius = 24.0 + Math.sin(elapsed) * 6.0
+
+        drawing.clear()
+        drawing.paint(func(painter:&Canvas.Painter) {
+            painter.fill(
+                Canvas.Circle(Math.Vec2(), radius),
+                Canvas.Fill.solid(Color.amber_400())
+            )
+        })
+    },
+    Viewer.CanvasSettings(
+        width:640,
+        height:480,
+        anchor:Math.Vec2(0.5)
+    )
+)
+```
+
+Le callback reçoit toujours la même instance de Canvas. Viewer ne la vide ni
+ne la remplace : le producteur décide quand ses commandes changent. Une frame
+qui ne modifie pas le dessin conserve donc sa révision et toute sa préparation
+retenue. Après une modification volontaire, Canvas et Scene2D réutilisent leurs
+géométries et allocations incrémentales ordinaires.
+
 ## Présenter un contenu interactif
 
 Un contenu Canvas interactif implémente `Canvas.Session` :

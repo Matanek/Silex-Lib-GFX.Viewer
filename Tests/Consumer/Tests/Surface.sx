@@ -1,5 +1,6 @@
 use GFX.Assets.Image
 use GFX.Canvas
+use GFX.Color
 use GFX.Input
 use GFX.Viewer
 use STD.Math
@@ -32,11 +33,33 @@ func responsive_canvas(width:int, height:int) Canvas {
     return Canvas()
 }
 
+func animate_canvas(
+    frame:@Viewer.CanvasFrame,
+    drawing:&Canvas
+) {
+    if drawing.is_empty() {
+        drawing.paint(func(painter:&Canvas.Painter) {
+            painter.fill(
+                Canvas.Circle(Math.Vec2(24.0), 12.0 + frame.delta),
+                Canvas.Fill.solid(Color.sky_400())
+            )
+        })
+    }
+}
+
 func display_responsive_canvas() int {
     return Viewer.show(responsive_canvas, Viewer.CanvasSettings(
         width:960,
         height:640,
         title:"Responsive UI"
+    ))
+}
+
+func display_animated_canvas() int {
+    return Viewer.show(animate_canvas, Viewer.CanvasSettings(
+        width:640,
+        height:480,
+        title:"Animated Canvas"
     ))
 }
 

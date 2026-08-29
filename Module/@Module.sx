@@ -68,6 +68,18 @@ public struct CanvasSettings {
     }
 }
 
+public struct CanvasFrame {
+    let delta:float
+    let width:int
+    let height:int
+
+    module init(delta:float, width:int, height:int) {
+        self.delta = delta
+        self.width = width
+        self.height = height
+    }
+}
+
 package class ImageView {
     private var current_image:Image
     private var current_revision:int
@@ -107,13 +119,20 @@ func empty_drawing(width:int, height:int) AuthoredCanvas {
 
 func keep_viewer_open() bool { return false }
 
+func keep_drawing_unchanged(
+    frame:@CanvasFrame,
+    drawing:&AuthoredCanvas
+) {}
+
 class DrawingSource {
     private var fixed:AuthoredCanvas?
     private var builder:func(int, int) AuthoredCanvas
     private var session:CanvasSession? = null
+    private let frame_callback:func(@CanvasFrame, &AuthoredCanvas)
     private let close_condition:func() bool
     let responsive:bool
     let interactive:bool
+    let animated:bool
 
     private init(
         drawing:AuthoredCanvas?,
@@ -121,14 +140,18 @@ class DrawingSource {
         responsive:bool,
         session:CanvasSession? = null,
         interactive:bool = false,
+        frame_callback:func(@CanvasFrame, &AuthoredCanvas) = keep_drawing_unchanged,
+        animated:bool = false,
         close_when:func() bool = keep_viewer_open
     ) {
         self.fixed = drawing
         self.builder = builder
         self.session = session
+        self.frame_callback = frame_callback
         self.close_condition = close_when
         self.responsive = responsive
         self.interactive = interactive
+        self.animated = animated
     }
 
     static func fixed(drawing:AuthoredCanvas) DrawingSource {
@@ -137,6 +160,18 @@ class DrawingSource {
 
     static func responsive(builder:func(int, int) AuthoredCanvas) DrawingSource {
         return DrawingSource(null, builder, true)
+    }
+
+    static func animated(
+        callback:func(@CanvasFrame, &AuthoredCanvas)
+    ) DrawingSource {
+        return DrawingSource(
+            AuthoredCanvas(),
+            empty_drawing,
+            false,
+            frame_callback:callback,
+            animated:true
+        )
     }
 
     static func interactive(
@@ -168,6 +203,15 @@ class DrawingSource {
     func update(delta:float) bool {
         if var content = self.session { return content.update(delta) }
         return false
+    }
+
+    func advance(frame:@CanvasFrame) {
+        if !self.animated { return }
+        if var drawing = self.fixed {
+            self.frame_callback(frame, drawing)
+            return
+        }
+        panic("GFX.Viewer has no animated Canvas")
     }
 
     func accepts_text_input() bool {
@@ -344,6 +388,30 @@ package func responsive_canvas_application(
     return application
 }
 
+package func animated_canvas_application(
+    callback:func(@CanvasFrame, &AuthoredCanvas),
+    settings:CanvasSettings = CanvasSettings()
+) Application {
+    var application = Application()
+    application.add_plugin(WindowPlugin(WindowPlugin.Settings()
+        ..title = settings.title
+        ..width = settings.width
+        ..height = settings.height
+    ))
+    application.add_plugin(RenderingPlugin(RenderingPlugin.Settings()
+        ..clear = settings.background
+    ))
+    application.add_plugin(TimePlugin())
+    application.add_plugin(Scene2DPlugin())
+    application.add_resource(DrawingSource.animated(callback))
+    application.add_resource(DrawingPresentation(settings))
+    application.add_system(Schedule.startup, start_drawing_viewer)
+    application.add_system(Schedule.update, advance_drawing_viewer)
+    application.add_system(Schedule.update, resize_drawing_viewer)
+    application.add_system(Schedule.shutdown, stop_drawing_viewer)
+    return application
+}
+
 package func interactive_canvas_application(
     session:CanvasSession,
     settings:CanvasSettings = CanvasSettings(),
@@ -413,6 +481,14 @@ public func show(
 }
 
 public func show(
+    content:func(@CanvasFrame, &AuthoredCanvas),
+    settings:CanvasSettings = CanvasSettings()
+) int {
+    var application = animated_canvas_application(content, settings)
+    return application.run()
+}
+
+public func show(
     content:CanvasSession,
     settings:CanvasSettings = CanvasSettings()
 ) int {
@@ -438,6 +514,10 @@ func start_drawing_viewer(application:Application) {
     let size = resources.get<WindowApi>().size()
     let width = size.x as int
     let height = size.y as int
+    {
+        var source = resources.get_mut<DrawingSource>()
+        source.advance(CanvasFrame(0.0, width, height))
+    }
     var drawing = resources.get<DrawingSource>().drawing(width, height)
     var position = Math.Vec2()
     var anchor = Math.Vec2()
@@ -467,6 +547,18 @@ func start_drawing_viewer(application:Application) {
         return
     }
     panic("GFX.Viewer has no drawing")
+}
+
+func advance_drawing_viewer(
+    time:@Resources.FrameTime,
+    window:@WindowApi,
+    source:&DrawingSource
+) {
+    let size = window.size()
+    let width = size.x as int
+    let height = size.y as int
+    if width <= 0 || height <= 0 { return }
+    source.advance(CanvasFrame(time.delta, width, height))
 }
 
 func resize_drawing_viewer(

@@ -93,6 +93,48 @@ Viewer.show(responsive, Viewer.CanvasSettings(
 
 This fragment assumes an application-owned `build_interface` function.
 
+## Animate a retained Canvas
+
+Pass a frame callback when the drawing evolves over time without requiring a
+complete interactive session. Viewer creates one Canvas, calls the callback
+once with a zero delta, then forwards the time and logical dimensions of every
+frame:
+
+```sx
+use GFX.Canvas
+use GFX.Color
+use GFX.Viewer
+use STD.Math
+
+var elapsed = 0.0
+
+Viewer.show(
+    func(frame:@Viewer.CanvasFrame, drawing:&Canvas) {
+        elapsed += frame.delta
+        let radius = 24.0 + Math.sin(elapsed) * 6.0
+
+        drawing.clear()
+        drawing.paint(func(painter:&Canvas.Painter) {
+            painter.fill(
+                Canvas.Circle(Math.Vec2(), radius),
+                Canvas.Fill.solid(Color.amber_400())
+            )
+        })
+    },
+    Viewer.CanvasSettings(
+        width:640,
+        height:480,
+        anchor:Math.Vec2(0.5)
+    )
+)
+```
+
+The callback always receives the same Canvas instance. Viewer neither clears
+nor replaces it: the producer decides when its commands change. A frame that
+does not mutate the drawing therefore keeps its revision and all retained
+preparation. After an intentional mutation, Canvas and Scene2D reuse their
+ordinary incremental geometry and allocations.
+
 ## Present interactive content
 
 Interactive Canvas content implements `Canvas.Session`:

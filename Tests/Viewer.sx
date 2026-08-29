@@ -56,6 +56,21 @@ func responsive_drawing(width:int, height:int) Canvas {
     return drawing
 }
 
+func append_animated_frame(
+    frame:@Viewer.CanvasFrame,
+    drawing:&Canvas
+) {
+    let offset = drawing.command_count() as float * 8.0
+    drawing.paint(func(painter:&Canvas.Painter) {
+        painter.fill(
+            Canvas.Circle(Math.Vec2(12.0 + offset, 12.0), 6.0),
+            Canvas.Fill.solid(Color.amber_400())
+        )
+    })
+    assert(frame.width == 64)
+    assert(frame.height == 64)
+}
+
 class InteractiveDrawing:Canvas.Session {
     var handled_events:int = 0
     var updated_frames:int = 0
@@ -161,6 +176,29 @@ func verify_responsive_viewer_resize(
     panic("GFX.Viewer responsive Canvas was not rebuilt for its window")
 }
 
+func verify_animated_canvas(
+    world:@ECS.World,
+    controller:&Application.Controller
+) {
+    var canvas_count = 0
+    var ready = false
+    for entity in world.entities() {
+        if world.has<Scene2D.Canvas>(entity) {
+            canvas_count++
+            let canvas = world.get<Scene2D.Canvas>(entity)
+            if canvas.revision() > 1 &&
+                canvas.snapshot().geometry().vertex_count() >= 12
+            {
+                ready = true
+            }
+        }
+    }
+    if ready {
+        assert(canvas_count == 1)
+        controller.stop()
+    }
+}
+
 test "display and replace an image through the viewer runtime" {
     var application = Viewer.image_application(
         Image.solid(Color.sky_400())
@@ -222,6 +260,22 @@ test "rebuild responsive Canvas content for a resized window" {
     application.add_system(Application.Schedule.startup, resize_vector_viewer)
     application.add_system(Application.Schedule.update, verify_responsive_viewer_resize)
     application.run()
+}
+
+test "advance one retained Canvas through the direct show callback" {
+    var application = Viewer.animated_canvas_application(
+        append_animated_frame,
+        Viewer.CanvasSettings(width:64, height:64)
+    )
+    application.add_plugin(WindowPlugin(WindowPlugin.Settings()
+        ..title = "GFX.Viewer animated Canvas test"
+        ..width = 64
+        ..height = 64
+        ..hidden = true
+    ))
+    application.add_system(Application.Schedule.render, verify_animated_canvas)
+    application.run()
+    assert(application.has_plugin("GFX.Application.Time"))
 }
 
 test "forward window events to an interactive Canvas session" {
