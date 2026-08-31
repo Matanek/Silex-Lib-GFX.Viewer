@@ -141,6 +141,83 @@ func keep_drawing_unchanged(
     drawing:&AuthoredCanvas
 ) {}
 
+func dispatch_wheel_event(
+    session:CanvasSession,
+    source:@Events.MouseWheelEvent,
+    delta:Math.Vec2,
+    integer_delta:Math.Vec2
+) bool {
+    let event = Events.Event.mouse_wheel(Events.MouseWheelEvent(
+        window:source.window,
+        mouse:source.mouse,
+        delta:delta,
+        integer_delta:integer_delta,
+        position:source.position,
+        flipped:false,
+        timestamp:source.timestamp
+    ))
+    var target = session
+    return target.handle(event)
+}
+
+// Precise trackpads can emit many wheel samples between two presented frames.
+// Preserve their total displacement but dispatch one UI scroll per consecutive
+// burst, as browsers and editors do before building the next retained drawing.
+package func dispatch_canvas_events(
+    session:CanvasSession,
+    events:@Events.Event[..]
+) bool {
+    var target = session
+    var changed = false
+    var pending:Events.MouseWheelEvent? = null
+    var delta = Math.Vec2()
+    var integer_delta = Math.Vec2()
+    for event in events {
+        match event {
+            mouse_wheel(value) => {
+                var next_delta = value.delta
+                var next_integer = value.integer_delta
+                if value.flipped {
+                    next_delta = Math.Vec2(-next_delta.x, -next_delta.y)
+                    next_integer = Math.Vec2(-next_integer.x, -next_integer.y)
+                }
+                delta = Math.Vec2(
+                    delta.x + next_delta.x,
+                    delta.y + next_delta.y
+                )
+                integer_delta = Math.Vec2(
+                    integer_delta.x + next_integer.x,
+                    integer_delta.y + next_integer.y
+                )
+                pending = value
+            }
+            else => {
+                if let wheel = pending {
+                    changed = dispatch_wheel_event(
+                        target,
+                        wheel,
+                        delta,
+                        integer_delta
+                    ) || changed
+                    pending = null
+                    delta = Math.Vec2()
+                    integer_delta = Math.Vec2()
+                }
+                changed = target.handle(event) || changed
+            }
+        }
+    }
+    if let wheel = pending {
+        changed = dispatch_wheel_event(
+            target,
+            wheel,
+            delta,
+            integer_delta
+        ) || changed
+    }
+    return changed
+}
+
 class DrawingSource {
     private var fixed:AuthoredCanvas?
     private var builder:func(int, int) AuthoredCanvas
@@ -214,6 +291,13 @@ class DrawingSource {
 
     func handle(event:@Events.Event) bool {
         if var content = self.session { return content.handle(event) }
+        return false
+    }
+
+    func handle_events(events:@Events.Event[..]) bool {
+        if var content = self.session {
+            return dispatch_canvas_events(content, events)
+        }
         return false
     }
 
@@ -624,9 +708,7 @@ func interact_drawing_viewer(
 ) {
     if !source.interactive { return }
     var changed = source.update(time.delta)
-    for event in input.events() {
-        changed = source.handle(event) || changed
-    }
+    changed = source.handle_events(input.events()) || changed
     if source.should_close() {
         controller.stop()
         return

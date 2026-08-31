@@ -4,6 +4,7 @@ use GFX.Canvas
 use GFX.Color
 use GFX.ECS
 use GFX.Input
+use GFX.Input.Events
 use GFX.Scene2D
 use GFX.Viewer
 use GFX.Window
@@ -76,6 +77,8 @@ func append_animated_frame(
 class InteractiveDrawing:Canvas.Session {
     var handled_events:int = 0
     var updated_frames:int = 0
+    var wheel_events:int = 0
+    var wheel_delta:Math.Vec2 = Math.Vec2()
 
     func drawing(width:int, height:int) Canvas {
         return responsive_drawing(width, height)
@@ -83,6 +86,13 @@ class InteractiveDrawing:Canvas.Session {
 
     func handle(event:@Input.Event) bool {
         self.handled_events++
+        match event {
+            mouse_wheel(value) => {
+                self.wheel_events++
+                self.wheel_delta = value.delta
+            }
+            else => {}
+        }
         return true
     }
 
@@ -92,6 +102,38 @@ class InteractiveDrawing:Canvas.Session {
     }
 
     func accepts_text_input() bool { return false }
+}
+
+test "coalesce a precise trackpad burst before UI dispatch" {
+    var session = InteractiveDrawing()
+    let window = Window.Id(value:1 as uint32)
+    let mouse = Input.MouseId(value:1 as uint32)
+    let timestamp = Input.Timestamp(nanoseconds:1 as uint)
+    let events:Input.Event[] = [
+        Input.Event.mouse_wheel(Events.MouseWheelEvent(
+            window:window,
+            mouse:mouse,
+            delta:Math.Vec2(0.0, 1.25),
+            integer_delta:Math.Vec2(0.0, 1.0),
+            position:Math.Vec2(12.0),
+            flipped:false,
+            timestamp:timestamp
+        )),
+        Input.Event.mouse_wheel(Events.MouseWheelEvent(
+            window:window,
+            mouse:mouse,
+            delta:Math.Vec2(0.0, 0.75),
+            integer_delta:Math.Vec2(0.0, 1.0),
+            position:Math.Vec2(14.0),
+            flipped:true,
+            timestamp:timestamp
+        ))
+    ]
+
+    assert(Viewer.dispatch_canvas_events(session, @events[0:events.count()]))
+    assert(session.handled_events == 1)
+    assert(session.wheel_events == 1)
+    assert(Math.abs(session.wheel_delta.y - 0.5) < 0.001)
 }
 
 class TimedDrawing:Viewer.CanvasSession {
