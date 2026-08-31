@@ -35,6 +35,8 @@ func verify_vector_viewer_resize(
             let transform = world.get<Scene2D.Transform>(entity)
             if canvas.size == expected &&
                 canvas.anchor == Math.Vec2(0.5) &&
+                canvas.text_mode == Scene2D.CanvasTextMode.vector &&
+                canvas.coverage_density == 2.0 &&
                 transform.position == Math.Vec2(4.0, 6.0)
             {
                 controller.stop()
@@ -230,7 +232,9 @@ test "display a canvas through the retained vector viewer" {
             width:64,
             height:64,
             position:Math.Vec2(4.0, 6.0),
-            anchor:Math.Vec2(0.5)
+            anchor:Math.Vec2(0.5),
+            text_mode:Viewer.CanvasTextMode.vector,
+            coverage_density:2.0
         )
     )
     application.add_plugin(WindowPlugin(WindowPlugin.Settings()

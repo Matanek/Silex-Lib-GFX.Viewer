@@ -76,6 +76,22 @@ Viewer.show(drawing, Viewer.CanvasSettings(
 The positional `Viewer.show(drawing, width, height, title)` form remains the
 shortest path for examples and generated plots.
 
+Text uses hinted coverage by default, which is suitable at small sizes. An
+application that needs to control its representation explicitly selects the
+mode in the Canvas settings:
+
+```sx
+Viewer.show(drawing, Viewer.CanvasSettings(
+    text_mode:Viewer.CanvasTextMode.vector
+))
+```
+
+`coverage` preserves raster coverage and `coverage_density` controls its
+additional density; `vector` requires an outline for every non-empty glyph and
+retains scalable meshes; `automatic` tries outlines and falls back to coverage
+when a glyph has none. This choice affects text only: the other Canvas commands
+keep their retained vector geometry.
+
 When layout depends on the window, pass a drawing function. Viewer calls it at
 startup and after every resize so the producer can recompute its layout:
 

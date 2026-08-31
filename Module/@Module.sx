@@ -14,6 +14,7 @@ use GFX.Rendering.Plugin as RenderingPlugin
 use GFX.Resources
 use GFX.Scene2D
 use GFX.Scene2D.Plugin as Scene2DPlugin
+public use GFX.Scene2D.CanvasTextMode
 use GFX.Window as WindowApi
 use GFX.Window.Plugin as WindowPlugin
 use STD.Math
@@ -47,6 +48,9 @@ public struct CanvasSettings {
     var background:Color
     var position:Math.Vec2
     var anchor:Math.Vec2
+    var text_mode:Scene2D.CanvasTextMode
+    var coverage_density:float
+    var hidden:bool
 
     init(
         width:int = 960,
@@ -54,10 +58,16 @@ public struct CanvasSettings {
         title:str = "GFX canvas viewer",
         background:Color = Color.slate_950(),
         position:Math.Vec2 = Math.Vec2(),
-        anchor:Math.Vec2 = Math.Vec2()
+        anchor:Math.Vec2 = Math.Vec2(),
+        text_mode:Scene2D.CanvasTextMode = Scene2D.CanvasTextMode.coverage,
+        coverage_density:float = 1.0,
+        hidden:bool = false
     ) {
         if width <= 0 || height <= 0 {
             panic("GFX.Viewer canvas dimensions must be positive")
+        }
+        if coverage_density <= 0.0 {
+            panic("GFX.Viewer Canvas coverage density must be positive")
         }
         self.title = title
         self.width = width
@@ -65,6 +75,9 @@ public struct CanvasSettings {
         self.background = background
         self.position = position
         self.anchor = anchor
+        self.text_mode = text_mode
+        self.coverage_density = coverage_density
+        self.hidden = hidden
     }
 }
 
@@ -104,12 +117,16 @@ class DrawingPresentation {
     var display_height:int
     let position:Math.Vec2
     let anchor:Math.Vec2
+    let text_mode:Scene2D.CanvasTextMode
+    let coverage_density:float
 
     init(settings:CanvasSettings) {
         self.display_width = 0
         self.display_height = 0
         self.position = settings.position
         self.anchor = settings.anchor
+        self.text_mode = settings.text_mode
+        self.coverage_density = settings.coverage_density
     }
 }
 
@@ -353,6 +370,7 @@ package func canvas_application(
         ..title = settings.title
         ..width = settings.width
         ..height = settings.height
+        ..hidden = settings.hidden
     ))
     application.add_plugin(RenderingPlugin(RenderingPlugin.Settings()
         ..clear = settings.background
@@ -375,6 +393,7 @@ package func responsive_canvas_application(
         ..title = settings.title
         ..width = settings.width
         ..height = settings.height
+        ..hidden = settings.hidden
     ))
     application.add_plugin(RenderingPlugin(RenderingPlugin.Settings()
         ..clear = settings.background
@@ -397,6 +416,7 @@ package func animated_canvas_application(
         ..title = settings.title
         ..width = settings.width
         ..height = settings.height
+        ..hidden = settings.hidden
     ))
     application.add_plugin(RenderingPlugin(RenderingPlugin.Settings()
         ..clear = settings.background
@@ -422,6 +442,7 @@ package func interactive_canvas_application(
         ..title = settings.title
         ..width = settings.width
         ..height = settings.height
+        ..hidden = settings.hidden
     ))
     application.add_plugin(RenderingPlugin(RenderingPlugin.Settings()
         ..clear = settings.background
@@ -521,10 +542,14 @@ func start_drawing_viewer(application:Application) {
     var drawing = resources.get<DrawingSource>().drawing(width, height)
     var position = Math.Vec2()
     var anchor = Math.Vec2()
+    var text_mode = Scene2D.CanvasTextMode.coverage
+    var coverage_density = 1.0
     {
         let placement = resources.get<DrawingPresentation>()
         position = placement.position
         anchor = placement.anchor
+        text_mode = placement.text_mode
+        coverage_density = placement.coverage_density
     }
     var display:ECS.Entity? = null
     {
@@ -536,7 +561,9 @@ func start_drawing_viewer(application:Application) {
             height,
             size,
             position,
-            anchor
+            anchor,
+            text_mode,
+            coverage_density
         )
     }
     if let entity = display {
@@ -647,7 +674,9 @@ func replace_drawing(
         height,
         size,
         presentation.position,
-        presentation.anchor
+        presentation.anchor,
+        presentation.text_mode,
+        presentation.coverage_density
     )
     presentation.display_width = width
     presentation.display_height = height
@@ -668,7 +697,9 @@ func spawn_drawing(
     height:int,
     size:Math.Vec2,
     position:Math.Vec2,
-    anchor:Math.Vec2
+    anchor:Math.Vec2,
+    text_mode:Scene2D.CanvasTextMode,
+    coverage_density:float
 ) ECS.Entity {
     return world.spawn(ECS.EntityRecipe()
         ..with(Scene2D.Transform(position:position))
@@ -677,6 +708,8 @@ func spawn_drawing(
             ..space = Scene2D.CanvasSpace.viewport
             ..anchor = anchor
             ..pivot = Math.Vec2()
+            ..text_mode = text_mode
+            ..coverage_density = coverage_density
         )
     )
 }

@@ -78,6 +78,23 @@ Viewer.show(drawing, Viewer.CanvasSettings(
 La forme positionnelle `Viewer.show(drawing, width, height, title)` reste le
 parcours le plus court pour les exemples et graphiques générés.
 
+Le texte emploie par défaut une couverture hintée, adaptée aux petites tailles.
+Une application qui veut contrôler explicitement sa représentation choisit le
+mode dans les réglages du Canvas :
+
+```sx
+Viewer.show(drawing, Viewer.CanvasSettings(
+    text_mode:Viewer.CanvasTextMode.vector
+))
+```
+
+`coverage` conserve la couverture raster et `coverage_density` en règle la
+densité supplémentaire ; `vector` exige un contour pour chaque glyphe non vide
+et conserve des meshes redimensionnables ; `automatic` essaie les contours puis
+revient à la couverture lorsqu'un glyphe n'en possède pas. Ce choix concerne le
+texte uniquement : les autres commandes Canvas conservent leur géométrie
+vectorielle retenue.
+
 Lorsque le layout dépend de la fenêtre, passez une fonction de dessin. Viewer
 l’appelle au démarrage puis après chaque redimensionnement afin que le
 producteur recalcule sa disposition :
