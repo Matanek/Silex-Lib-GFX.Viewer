@@ -34,11 +34,21 @@ func verify_vector_viewer_resize(
         if world.has<Scene2D.Canvas>(entity) {
             let canvas = world.get<Scene2D.Canvas>(entity)
             let transform = world.get<Scene2D.Transform>(entity)
+            var has_layer = false
+            var has_image = false
+            for content in canvas.snapshot().content() {
+                match content {
+                    layer(value) => { has_layer = true }
+                    image(value) => { has_image = true }
+                    else => {}
+                }
+            }
             if canvas.size == expected &&
                 canvas.anchor == Math.Vec2(0.5) &&
                 canvas.text_mode == Scene2D.CanvasTextMode.vector &&
                 canvas.coverage_density == 2.0 &&
-                transform.position == Math.Vec2(4.0, 6.0)
+                transform.position == Math.Vec2(4.0, 6.0) &&
+                has_layer && has_image
             {
                 controller.stop()
                 return
@@ -46,6 +56,40 @@ func verify_vector_viewer_resize(
         }
     }
     panic("GFX.Viewer vector content did not follow its resized window")
+}
+
+func retained_effects_drawing() Canvas {
+    var drawing = Canvas()
+    var paint = Canvas.ImagePaint(Image.solid(Color.violet_500()))
+    let image_frame = Canvas.Rect(Math.Vec2(4.0, 40.0), Math.Vec2(24.0, 16.0))
+    drawing.paint(func(painter:&Canvas.Painter) {
+        painter.layer(
+            [Canvas.Effect.shadow(
+                Math.Vec2(3.0, 4.0),
+                5.0,
+                Color.black().with_alpha(0.45)
+            )],
+            func(layer:&Canvas.Painter) {
+                layer.fill(
+                    Canvas.Circle(Math.Vec2(32.0, 24.0), 16.0),
+                    Canvas.Fill.solid(Color.sky_400())
+                )
+                layer.text(
+                    "GFX.Font",
+                    Math.Vec2(12.0, 28.0),
+                    Canvas.TextStyle(size:12.0, color:Color.white())
+                )
+            }
+        )
+        painter.fill(
+            image_frame,
+            Canvas.Fill.image(
+                paint,
+                Canvas.ImageMapping.fit(frame:image_frame)
+            )
+        )
+    })
+    return drawing
 }
 
 func responsive_drawing(width:int, height:int) Canvas {
@@ -65,9 +109,18 @@ func append_animated_frame(
 ) {
     let offset = drawing.command_count() as float * 8.0
     drawing.paint(func(painter:&Canvas.Painter) {
-        painter.fill(
-            Canvas.Circle(Math.Vec2(12.0 + offset, 12.0), 6.0),
-            Canvas.Fill.solid(Color.amber_400())
+        painter.layer(
+            [Canvas.Effect.shadow(
+                Math.Vec2(2.0, 3.0),
+                4.0,
+                Color.black().with_alpha(0.4)
+            )],
+            func(layer:&Canvas.Painter) {
+                layer.fill(
+                    Canvas.Circle(Math.Vec2(12.0 + offset, 12.0), 6.0),
+                    Canvas.Fill.solid(Color.amber_400())
+                )
+            }
         )
     })
     assert(frame.width == 64)
@@ -230,10 +283,13 @@ func verify_animated_canvas(
         if world.has<Scene2D.Canvas>(entity) {
             canvas_count++
             let canvas = world.get<Scene2D.Canvas>(entity)
-            if canvas.revision() > 1 &&
-                canvas.snapshot().geometry().vertex_count() >= 12
-            {
-                ready = true
+            if canvas.revision() > 1 {
+                for content in canvas.snapshot().content() {
+                    match content {
+                        layer(value) => { ready = true }
+                        else => {}
+                    }
+                }
             }
         }
     }
@@ -261,13 +317,7 @@ test "display and replace an image through the viewer runtime" {
 }
 
 test "display a canvas through the retained vector viewer" {
-    var drawing = Canvas()
-    drawing.paint(func(painter:&Canvas.Painter) {
-        painter.fill(
-            Canvas.Circle(Math.Vec2(32.0), 18.0),
-            Canvas.Fill.solid(Color.sky_400())
-        )
-    })
+    var drawing = retained_effects_drawing()
     var application = Viewer.canvas_application(
         drawing,
         Viewer.CanvasSettings(

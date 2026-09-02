@@ -92,6 +92,14 @@ retains scalable meshes; `automatic` tries outlines and falls back to coverage
 when a glyph has none. This choice affects text only: the other Canvas commands
 keep their retained vector geometry.
 
+Image fills, shadowed or blurred groups, and Scene2D placement shaders recorded
+in the Canvas follow the same fixed, responsive, animated, and interactive
+paths. Viewer therefore has no second effects API: it forwards the retained
+intent to the Scene2D renderer. Shadowed `GFX.Font` text remains a `GlyphRun`;
+in `vector` mode its outlines remain meshes, while `coverage` mode rasterizes
+only the hinted R8 glyphs. The effect never builds a CPU-side RGBA texture for
+the complete line.
+
 When layout depends on the window, pass a drawing function. Viewer calls it at
 startup and after every resize so the producer can recompute its layout:
 
@@ -150,6 +158,10 @@ nor replaces it: the producer decides when its commands change. A frame that
 does not mutate the drawing therefore keeps its revision and all retained
 preparation. After an intentional mutation, Canvas and Scene2D reuse their
 ordinary incremental geometry and allocations.
+
+Retention also applies to filtered groups and image fills: a frame that does
+not mutate a group keeps its prepared surface, while a mutation invalidates
+only that group and its dependencies.
 
 ## Present interactive content
 

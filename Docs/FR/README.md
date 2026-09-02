@@ -95,6 +95,14 @@ revient à la couverture lorsqu'un glyphe n'en possède pas. Ce choix concerne l
 texte uniquement : les autres commandes Canvas conservent leur géométrie
 vectorielle retenue.
 
+Les remplissages image, groupes avec ombre ou flou et shaders de placement
+Scene2D enregistrés dans le Canvas suivent les mêmes parcours fixes,
+responsives, animés et interactifs. Viewer ne possède donc pas une seconde API
+d’effets : il transmet l’intention retenue au renderer Scene2D. Un texte
+`GFX.Font` ombré reste un `GlyphRun` ; en mode `vector`, ses contours restent
+des meshes, et en mode `coverage`, seuls les glyphes R8 hintés sont rasterisés.
+L’effet ne construit jamais une texture RGBA de toute la ligne sur CPU.
+
 Lorsque le layout dépend de la fenêtre, passez une fonction de dessin. Viewer
 l’appelle au démarrage puis après chaque redimensionnement afin que le
 producteur recalcule sa disposition :
@@ -154,6 +162,10 @@ ne la remplace : le producteur décide quand ses commandes changent. Une frame
 qui ne modifie pas le dessin conserve donc sa révision et toute sa préparation
 retenue. Après une modification volontaire, Canvas et Scene2D réutilisent leurs
 géométries et allocations incrémentales ordinaires.
+
+La rétention s’applique également aux groupes filtrés et remplissages image :
+une frame qui ne modifie pas le groupe conserve sa surface préparée, tandis
+qu’une mutation invalide uniquement ce groupe et ses dépendances.
 
 ## Présenter un contenu interactif
 
