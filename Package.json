@@ -1,20 +1,20 @@
 {
   "name": "GFX.Viewer",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": {
     "en": "Display images, Canvas drawings, Plot figures, and other visual values in a native window.",
     "fr": "Affiche des images, dessins Canvas, figures Plot et autres valeurs visuelles dans une fenêtre native."
   },
   "authors": ["Matanek"],
-  "requires": { "silex": ">=0.43.0" },
+  "requires": { "silex": ">=0.44.0" },
   "dependencies": {
-    "GFX": "^0.37.0",
-    "GFX.Assets": "^0.1.0",
-    "GFX.Canvas": "^0.1.0",
-    "GFX.ECS": "^0.1.0",
-    "GFX.GPU": "^0.1.0",
-    "GFX.Rendering": "^0.1.0",
-    "GFX.Scene2D": "^0.1.0",
-    "STD": "^0.16.0"
+    "GFX": "^0.40.0",
+    "GFX.Assets": "^0.3.0",
+    "GFX.Canvas": "^0.4.0",
+    "GFX.ECS": "^0.2.0",
+    "GFX.GPU": "^0.3.0",
+    "GFX.Rendering": "^0.4.0",
+    "GFX.Scene2D": "^0.3.0",
+    "STD": "^0.22.0"
   }
 }
